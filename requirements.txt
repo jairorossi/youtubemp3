@@ -1,3 +1,2 @@
 streamlit
-yt-dlp
-yt-dlp-get-oauth2
+yt-dlp>=2025.1.1
