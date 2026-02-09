@@ -3,99 +3,75 @@ import yt_dlp
 import os
 
 # 1. Configuração da Página
-st.set_page_config(page_title="HyperCam MP3 Downloader", page_icon="🎵", layout="centered")
+st.set_page_config(page_title="HyperCam Strike MP3", page_icon="🎵")
 
-# 2. Estilo Visual (Dark Mode Moderno)
+# Estilo visual Dark
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
-    .stButton>button { 
-        width: 100%; 
-        border-radius: 10px; 
-        height: 3.5em; 
-        background-color: #1f6aa5; 
-        color: white; 
-        font-weight: bold;
-        border: none;
-    }
-    .stButton>button:hover { background-color: #144870; }
-    .stTextInput>div>div>input { border-radius: 10px; }
+    .stButton>button { width: 100%; border-radius: 10px; height: 3.5em; background-color: #e63946; color: white; font-weight: bold; border: none; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🎵 HyperCam MP3 Downloader")
-st.write("Versão de Contingência - Forçando busca de áudio")
+st.title("🎵 HyperCam MP3 - Strike Mode")
+st.write("Bypassing YouTube Signatures...")
 
-# 3. Campos de Entrada
-url = st.text_input("Cole o link do YouTube aqui:", placeholder="https://www.youtube.com/watch?v=...")
+url = st.text_input("Link do vídeo:", placeholder="https://www.youtube.com/watch?v=...")
 
-quality_map = {"128 kbps": "128", "192 kbps": "192", "320 kbps": "320"}
-quality_choice = st.select_slider("Qualidade do Áudio", options=list(quality_map.keys()), value="192 kbps")
-
-# 4. Lógica de Download
-if st.button("GERAR DOWNLOAD MP3"):
+if st.button("FORÇAR DOWNLOAD"):
     if url:
         try:
-            with st.spinner("Buscando qualquer formato de áudio disponível..."):
+            with st.spinner("Bypassing..."):
                 output_dir = "downloads"
-                if not os.path.exists(output_dir):
-                    os.makedirs(output_dir)
+                if not os.path.exists(output_dir): os.makedirs(output_dir)
 
-                # Opções de Contingência: 
-                # Se não achar o 'bestaudio', ele pega o vídeo com áudio e extrai
+                # ESTRATÉGIA STRIKE:
+                # Usamos o cliente 'ios' que costuma ter menos travas de assinatura
+                # e removemos a exigência de 'bestaudio' para deixar o yt-dlp escolher
                 ydl_opts = {
-                    'format': 'bestaudio/best', 
+                    'format': 'ba/b', # Tenta áudio, se não der, pega o que tiver (vídeo+áudio)
                     'cookiefile': 'cookies.txt',
-                    'headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.5',
-                    },
                     'extractor_args': {
                         'youtube': {
-                            'player_client': ['web'], # 'web' é o mais confiável para formatos comuns
+                            'player_client': ['ios'],
+                            'skip': ['webpage', 'hls', 'dash'] # Pula protocolos que dão erro 403
                         }
                     },
                     'outtmpl': f'{output_dir}/%(title)s.%(ext)s',
                     'postprocessors': [{
                         'key': 'FFmpegExtractAudio',
                         'preferredcodec': 'mp3',
-                        'preferredquality': quality_map[quality_choice],
+                        'preferredquality': '192',
                     }],
-                    'quiet': False, # Deixamos False para você ver o log se der erro no Streamlit
-                    'noplaylist': True,
-                    # Se o formato pedido falhar, ele tenta o próximo melhor automaticamente
-                    'ignoreerrors': True, 
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+                    },
+                    'nocheckcertificate': True,
+                    'ignoreerrors': False,
+                    'logtostderr': True
                 }
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    # Tenta extrair e baixar
                     info = ydl.extract_info(url, download=True)
-                    if info is None:
-                        st.error("Não foi possível encontrar um formato compatível. O YouTube bloqueou este vídeo específico.")
+                    if not info:
+                        st.error("Erro: O YouTube recusou a conexão. Atualize seus cookies.")
                     else:
                         temp_filename = ydl.prepare_filename(info)
                         base, _ = os.path.splitext(temp_filename)
                         final_filename = base + ".mp3"
 
-                        # 5. Entrega do Arquivo
                         if os.path.exists(final_filename):
                             with open(final_filename, "rb") as f:
-                                st.success(f"✅ Pronto: {info.get('title', 'Audio')}")
-                                st.audio(f.read(), format="audio/mp3")
-                                st.download_button(
-                                    label="BAIXAR AGORA",
-                                    data=f,
-                                    file_name=f"{info.get('title', 'audio')}.mp3",
-                                    mime="audio/mpeg"
-                                )
+                                st.success("Download liberado!")
+                                st.download_button("BAIXAR MP3 AGORA", f, file_name=f"{info['title']}.mp3")
                             os.remove(final_filename)
                         else:
-                            st.error("Erro na conversão: O FFmpeg não conseguiu gerar o MP3.")
+                            # Se o arquivo não virou MP3, tentamos achar o arquivo original que baixou
+                            st.error("O download ocorreu, mas a conversão falhou. Verifique o packages.txt.")
 
         except Exception as e:
-            st.error(f"Erro crítico: {str(e)}")
+            st.error(f"Erro de Conexão: {str(e)}")
+            st.info("Dica de Modder: O YouTube bloqueou o IP do servidor. Tente novamente em 5 minutos ou atualize o arquivo cookies.txt.")
     else:
-        st.warning("Insira uma URL.")
-
-st.markdown("---")
-st.caption("HyperCam Project - Bypass Mode")
+        st.warning("Insira a URL.")
