@@ -1,41 +1,48 @@
 import streamlit as st
 import yt_dlp
 import os
-import shutil
 
-# Configuração da página e estilo
-st.set_page_config(page_title="HyperCam MP3", page_icon="🎵", layout="centered")
+# Configuração da página
+st.set_page_config(page_title="HyperCam MP3 Downloader", page_icon="🎵")
 
-# CSS para deixar a interface com a cara dos seus projetos (Escuro/Moderno)
+# Estilo personalizado para ficar com visual moderno
 st.markdown("""
     <style>
     .main { background-color: #0e1117; }
-    .stButton>button { width: 100%; border-radius: 10px; height: 3em; background-color: #1f6aa5; color: white; font-weight: bold; }
+    .stButton>button { 
+        width: 100%; 
+        border-radius: 10px; 
+        height: 3em; 
+        background-color: #1f6aa5; 
+        color: white; 
+        font-weight: bold; 
+    }
     .stTextInput>div>div>input { border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🎵 HyperCam MP3 Downloader")
-st.write("Versão Web para amigos - Converta vídeos para MP3 online.")
+st.write("Versão Web - Converta vídeos do YouTube usando sua conta (Cookies).")
 
-# Entrada da URL
-url = st.text_input("", placeholder="Cole o link do YouTube aqui...")
+# Campo de entrada da URL
+url = st.text_input("URL do Vídeo:", placeholder="https://www.youtube.com/watch?v=...")
 
-# Qualidade do áudio
-quality_map = {"Baixa (128kbps)": "128", "Média (192kbps)": "192", "Alta (320kbps)": "320"}
-quality_choice = st.select_slider("Qualidade do Áudio", options=list(quality_map.keys()), value="Média (192kbps)")
+# Opções de qualidade
+quality_map = {"128 kbps": "128", "192 kbps": "192", "320 kbps": "320"}
+quality_choice = st.select_slider("Qualidade do Áudio", options=list(quality_map.keys()), value="192 kbps")
 
-if st.button("GERAR MP3"):
+if st.button("GERAR DOWNLOAD"):
     if url:
         try:
-            with st.spinner("Processando... Isso pode levar alguns segundos."):
-                output_dir = "temp_downloads"
+            with st.spinner("Bypassing YouTube... Aguarde."):
+                output_dir = "downloads"
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
 
-                # Opções com a SOLUÇÃO 1 (Disfarce de Cliente)
+                # Configurações com Cookies e Disfarce de Cliente
                 ydl_opts = {
                     'format': 'bestaudio/best',
+                    'cookiefile': 'cookies.txt',  # Usa o arquivo que você subiu
                     'extractor_args': {
                         'youtube': {
                             'player_client': ['android', 'ios', 'web'],
@@ -52,34 +59,36 @@ if st.button("GERAR MP3"):
                 }
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    # Extrai informações e faz o download
                     info = ydl.extract_info(url, download=True)
-                    # O yt-dlp às vezes mantém a extensão original no nome do arquivo interno
                     temp_filename = ydl.prepare_filename(info)
+                    
+                    # Garante que a extensão final seja .mp3 após o processamento do FFmpeg
                     base, _ = os.path.splitext(temp_filename)
                     final_filename = base + ".mp3"
 
-                # Oferece o download para o usuário
+                # Verifica se o arquivo existe e oferece para baixar
                 if os.path.exists(final_filename):
                     with open(final_filename, "rb") as f:
-                        st.success(f"✅ Concluído: {info['title']}")
+                        st.success(f"✅ Sucesso: {info['title']}")
                         st.audio(f.read(), format="audio/mp3")
                         st.download_button(
-                            label="BAIXAR ARQUIVO MP3",
+                            label="CLIQUE PARA BAIXAR O MP3",
                             data=f,
                             file_name=f"{info['title']}.mp3",
                             mime="audio/mpeg"
                         )
                     
-                    # Limpeza para não encher o servidor
+                    # Limpa o arquivo do servidor após o download
                     os.remove(final_filename)
                 else:
-                    st.error("Erro: O arquivo MP3 não foi geratedo corretamente.")
+                    st.error("Erro técnico: O arquivo MP3 não foi localizado após a conversão.")
 
         except Exception as e:
             st.error(f"Erro ao processar: {str(e)}")
-            st.info("Dica: Se o erro 403 persistir, o YouTube pode ter bloqueado o IP do servidor temporariamente.")
+            st.warning("Se o erro persistir, verifique se o seu arquivo cookies.txt está atualizado no GitHub.")
     else:
-        st.warning("Insira uma URL válida.")
+        st.warning("Por favor, cole um link válido.")
 
 st.markdown("---")
-st.caption("Desenvolvido para a comunidade HyperCam.")
+st.caption("Uso privado - Desenvolvedor HyperCam")
