@@ -1,60 +1,108 @@
 import streamlit as st
 import yt_dlp
 import os
+import re
 
-st.set_page_config(page_title="HyperCam MP3 Strike", page_icon="🎵")
+# ================= CONFIG STREAMLIT =================
+st.set_page_config(
+    page_title="HyperCam MP3 Strike",
+    page_icon="🎵",
+    layout="centered"
+)
 
 st.title("🎵 HyperCam MP3 - Force Mode")
-st.write("Tentativa de extração bruta para contornar bloqueio de formato.")
+st.write("Extração forçada de áudio com fallback avançado.")
 
-url = st.text_input("Link do vídeo:", placeholder="https://www.youtube.com/watch?v=...")
+# ================= INPUT =================
+url = st.text_input(
+    "Link do vídeo:",
+    placeholder="https://www.youtube.com/watch?v=..."
+)
 
+# ================= FUNÇÕES =================
+def sanitize_filename(name):
+    return re.sub(r'[\\/*?:"<>|]', "_", name)
+
+# ================= BOTÃO =================
 if st.button("FORÇAR EXTRAÇÃO"):
-    if url:
+    if not url:
+        st.warning("Insira o link do vídeo.")
+    else:
         try:
-            with st.spinner("Bypassing YouTube Constraints..."):
+            with st.spinner("Processando mídia..."):
+
                 output_dir = "downloads"
-                if not os.path.exists(output_dir): os.makedirs(output_dir)
+                os.makedirs(output_dir, exist_ok=True)
 
                 ydl_opts = {
-                    # O segredo: Não pedimos 'bestaudio'. Pedimos 'best' (qualquer coisa com vídeo)
-                    # O FFmpeg vai arrancar o áudio depois. Isso pula o erro de 'format not available'.
-                    'format': 'best', 
+                    # Cadeia de fallback REAL
+                    'format': '(bestvideo+bestaudio/best/bv*+ba/b)',
+
+                    # Cookies (se existirem)
                     'cookiefile': 'cookies.txt',
+
+                    # Saída
                     'outtmpl': f'{output_dir}/%(title)s.%(ext)s',
+
+                    # Força player Android (mais aceito)
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['android'],
+                        }
+                    },
+
+                    # IPv4 costuma passar onde IPv6 falha
+                    'force_ipv4': True,
+
+                    # Pós-processamento
                     'postprocessors': [{
                         'key': 'FFmpegExtractAudio',
                         'preferredcodec': 'mp3',
                         'preferredquality': '192',
                     }],
+
+                    # Headers realistas
                     'headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                        'User-Agent': (
+                            'Mozilla/5.0 (Linux; Android 13; Pixel 7 Pro) '
+                            'AppleWebKit/537.36 (KHTML, like Gecko) '
+                            'Chrome/120.0.0.0 Mobile Safari/537.36'
+                        )
                     },
+
                     'nocheckcertificate': True,
                     'quiet': False,
                 }
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=True)
-                    if info:
-                        # Pega o caminho do arquivo independente da extensão
-                        filename = ydl.prepare_filename(info)
-                        base, _ = os.path.splitext(filename)
-                        final_mp3 = base + ".mp3"
 
-                        if os.path.exists(final_mp3):
-                            with open(final_mp3, "rb") as f:
-                                st.success(f"✅ Extraído: {info['title']}")
-                                st.download_button("BAIXAR MP3", f, file_name=f"{info['title']}.mp3")
-                            os.remove(final_mp3)
-                        else:
-                            st.error("O download foi feito, mas o FFmpeg falhou na conversão. Verifique o packages.txt")
+                    # Playlist safety
+                    if 'entries' in info:
+                        info = info['entries'][0]
+
+                    title = sanitize_filename(info.get('title', 'audio'))
+                    filename = ydl.prepare_filename(info)
+                    base, _ = os.path.splitext(filename)
+                    final_mp3 = base + ".mp3"
+
+                    if os.path.exists(final_mp3):
+                        with open(final_mp3, "rb") as f:
+                            st.success(f"✅ Extraído: {title}")
+                            st.download_button(
+                                "⬇️ BAIXAR MP3",
+                                f,
+                                file_name=f"{title}.mp3",
+                                mime="audio/mpeg"
+                            )
+                        os.remove(final_mp3)
                     else:
-                        st.error("YouTube bloqueou todos os formatos para este servidor.")
+                        st.error(
+                            "Download ocorreu, mas o FFmpeg falhou. "
+                            "Verifique se o FFmpeg está disponível no ambiente."
+                        )
 
         except Exception as e:
             st.error(f"Erro: {str(e)}")
-    else:
-        st.warning("Insira o link.")
 
 st.caption("HyperCam Strike Dev")
